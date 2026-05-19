@@ -40,13 +40,13 @@
 
 ### Собранное приложение (Windows)
 
-1. Скачайте последнюю версию `QuickTranslate.exe` из раздела [Releases](https://github.com/yourusername/quicktranslate/releases).
+1. Скачайте последнюю версию `QuickTranslate.exe` из раздела [Releases](https://github.com/skywaJlker192/QuickTranslate/releases/tag/v1.0.0).
 2. Запустите файл от имени администратора (правый клик → «Запуск от имени администратора»). Это необходимо для работы глобальных горячих клавиш.
 3. Чтобы программа запускалась при старте системы, добавьте её в планировщик задач с высшими правами (см. ниже).
 
 ### Собранное приложение (macOS)
 
-1. Скачайте `QuickTranslate.app` из раздела [Releases](https://github.com/yourusername/quicktranslate/releases).
+1. Скачайте `QuickTranslate.app` из раздела [Releases] ##СДЕЛАЮ ПОЗЖЕ ТК МАКА НЕТУ СЕЙЧАС
 2. Перенесите приложение в папку «Программы».
 3. При первом запуске macOS может запросить разрешение на «Универсальный доступ» (System Preferences → Security & Privacy → Privacy → Accessibility). Нажмите «+» и добавьте `QuickTranslate.app`.
 4. Запускайте приложение как обычную программу.
