@@ -1,0 +1,4 @@
+PyQt5>=5.15
+pynput>=1.7
+pyperclip>=1.8
+deep-translator>=1.11

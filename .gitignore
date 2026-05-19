@@ -1,0 +1,19 @@
+# Файлы сборки
+build/
+dist/
+*.spec
+
+# Виртуальное окружение
+venv/
+.venv/
+
+# Конфиг с API-ключами (секретно!)
+config.json
+
+# Кэш Python
+__pycache__/
+*.pyc
+
+# Системные файлы
+.DS_Store
+Thumbs.db
