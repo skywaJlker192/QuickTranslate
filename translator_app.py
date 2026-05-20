@@ -371,7 +371,6 @@ class TranslatorWindow(QMainWindow):
         if src == "auto":
             # Делаем целевым "auto" нельзя, оставим как есть или отключим кнопку? Просто не меняем.
             return
-        # Устанавливаем новый src = tgt, новый tgt = src
         self.src_combo.setCurrentText(tgt)
         self.tgt_combo.setCurrentText(src)
 
