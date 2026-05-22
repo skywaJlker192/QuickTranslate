@@ -1,9 +1,3 @@
-"""
-QuickTranslate — кросс-платформенный переводчик на PyQt5.
-Вызывается глобальной горячей клавишей, переводит текст через Google, Yandex или DeepL.
-Работает на Windows и macOS. Версия с автосохранением настроек в %APPDATA% / Application Support.
-"""
-
 import sys
 import os
 import json
@@ -24,9 +18,7 @@ from deep_translator import GoogleTranslator, YandexTranslator, DeeplTranslator
 import pyperclip
 import keyboard  # Глобальный перехват горячих клавиш (pip install keyboard)
 
-# ────────────────────────────────────────────────────────────────────────────
 # Платформенные настройки и путь к конфигу
-# ────────────────────────────────────────────────────────────────────────────
 IS_WINDOWS = platform.system() == "Windows"
 IS_MAC = platform.system() == "Darwin"
 
@@ -40,9 +32,7 @@ else:
 os.makedirs(CONFIG_DIR, exist_ok=True)
 CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
 
-# ────────────────────────────────────────────────────────────────────────────
 # Глобальный обработчик горячих клавиш
-# ────────────────────────────────────────────────────────────────────────────
 class GlobalHotkey(QObject):
     activated = pyqtSignal()
 
@@ -65,9 +55,7 @@ class GlobalHotkey(QObject):
         self.hotkey_str = new_hotkey
         self._register()
 
-# ────────────────────────────────────────────────────────────────────────────
 # Кастомный выпадающий список (кнопка + меню) с явной стрелкой ▼
-# ────────────────────────────────────────────────────────────────────────────
 class LanguageComboBox(QPushButton):
     def __init__(self, items, parent=None):
         super().__init__(parent)
@@ -144,9 +132,7 @@ class LanguageComboBox(QPushButton):
         if self._current not in self._items:
             self._set_current(self._items[0])
 
-# ────────────────────────────────────────────────────────────────────────────
 # Конфигурация по умолчанию
-# ────────────────────────────────────────────────────────────────────────────
 DEFAULT_CONFIG = {
     "service": "Google",
     "yandex_key": "",
@@ -158,9 +144,7 @@ DEFAULT_CONFIG = {
     "hotkey": "Ctrl+Q"
 }
 
-# ────────────────────────────────────────────────────────────────────────────
 # Диалог настроек
-# ────────────────────────────────────────────────────────────────────────────
 class SettingsDialog(QDialog):
     def __init__(self, config, parent=None):
         super().__init__(parent)
@@ -230,9 +214,7 @@ class SettingsDialog(QDialog):
             "hotkey": self.hotkey_edit.keySequence().toString()
         }
 
-# ────────────────────────────────────────────────────────────────────────────
 # Диалог истории переводов
-# ────────────────────────────────────────────────────────────────────────────
 class HistoryDialog(QDialog):
     def __init__(self, history, parent=None):
         super().__init__(parent)
@@ -291,9 +273,7 @@ class HistoryDialog(QDialog):
         self.list_widget.clear()
         QMessageBox.information(self, "Очищено", "История переводов полностью очищена.")
 
-# ────────────────────────────────────────────────────────────────────────────
 # Главное окно
-# ────────────────────────────────────────────────────────────────────────────
 class TranslatorWindow(QMainWindow):
     def __init__(self):
         super().__init__()
