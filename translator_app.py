@@ -1,12 +1,32 @@
-import sys, os, json, time, platform
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, pyqtSignal, QObject, QPoint
-from PyQt5.QtGui import QFont, QPalette, QColor, QKeySequence
+"""
+QuickTranslate — кросс-платформенный переводчик на PyQt5.
+Вызывается глобальной горячей клавишей, переводит текст через Google, Yandex или DeepL.
+Работает на Windows и macOS. Версия с автосохранением настроек в %APPDATA% / Application Support.
+"""
+
+import sys
+import os
+import json
+import time
+import platform
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QComboBox, QTextEdit, QPushButton, QCheckBox, QLabel, QToolButton,
+    QMessageBox, QDialog, QFormLayout, QLineEdit, QKeySequenceEdit,
+    QListWidget, QListWidgetItem, QGraphicsDropShadowEffect, QMenu, QAction
+)
+from PyQt5.QtCore import (
+    Qt, QTimer, QPropertyAnimation, QEasingCurve,
+    pyqtSignal, QObject, QPoint
+)
+from PyQt5.QtGui import QFont, QPalette, QColor, QKeySequence, QIcon
 from deep_translator import GoogleTranslator, YandexTranslator, DeeplTranslator
 import pyperclip
-import keyboard
+import keyboard  # Глобальный перехват горячих клавиш (pip install keyboard)
 
-# ---------- Определение ОС и пути к конфигу ----------
+# ────────────────────────────────────────────────────────────────────────────
+# Платформенные настройки и путь к конфигу
+# ────────────────────────────────────────────────────────────────────────────
 IS_WINDOWS = platform.system() == "Windows"
 IS_MAC = platform.system() == "Darwin"
 
@@ -20,7 +40,9 @@ else:
 os.makedirs(CONFIG_DIR, exist_ok=True)
 CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
 
-# ---------- Потокобезопасный глобальный хоткей ----------
+# ────────────────────────────────────────────────────────────────────────────
+# Глобальный обработчик горячих клавиш
+# ────────────────────────────────────────────────────────────────────────────
 class GlobalHotkey(QObject):
     activated = pyqtSignal()
 
@@ -43,7 +65,88 @@ class GlobalHotkey(QObject):
         self.hotkey_str = new_hotkey
         self._register()
 
-# ---------- Конфигурация ----------
+# ────────────────────────────────────────────────────────────────────────────
+# Кастомный выпадающий список (кнопка + меню) с явной стрелкой ▼
+# ────────────────────────────────────────────────────────────────────────────
+class LanguageComboBox(QPushButton):
+    def __init__(self, items, parent=None):
+        super().__init__(parent)
+        self._items = items
+        self._current = items[0] if items else ""
+        self.setText(self._current + "  ▼")
+        self.setCursor(Qt.PointingHandCursor)
+        self.setStyleSheet("""
+            QPushButton {
+                background: #3c3c5c;
+                color: white;
+                border: 2px solid #7289da;
+                border-radius: 10px;
+                padding: 10px 14px;
+                font-size: 14px;
+                font-weight: bold;
+                text-align: left;
+            }
+            QPushButton:hover {
+                background: #4a4a6a;
+                border-color: #9b6dff;
+            }
+            QPushButton:pressed {
+                background: #5b6eae;
+            }
+        """)
+        self._menu = QMenu(self)
+        self._menu.setStyleSheet("""
+            QMenu {
+                background: #2a2a3c;
+                color: white;
+                border-radius: 10px;
+                border: 1px solid #7289da;
+                padding: 6px;
+            }
+            QMenu::item {
+                padding: 8px 24px;
+                border-radius: 6px;
+                margin: 2px 4px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QMenu::item:selected {
+                background: #7289da;
+            }
+        """)
+        self._rebuild_menu()
+        self.clicked.connect(self._show_menu)
+
+    def _rebuild_menu(self):
+        self._menu.clear()
+        for item in self._items:
+            action = QAction(item, self)
+            action.triggered.connect(lambda checked, text=item: self._set_current(text))
+            self._menu.addAction(action)
+
+    def _show_menu(self):
+        self._menu.exec_(self.mapToGlobal(self.rect().bottomLeft()))
+
+    def _set_current(self, text):
+        self._current = text
+        self.setText(text + "  ▼")
+
+    def currentText(self):
+        return self._current
+
+    def setCurrentText(self, text):
+        if text in self._items:
+            self._set_current(text)
+
+    def addItems(self, items):
+        self._items = items
+        self._rebuild_menu()
+        if self._current not in self._items:
+            self._set_current(self._items[0])
+
+# ────────────────────────────────────────────────────────────────────────────
+# Конфигурация по умолчанию
+# ────────────────────────────────────────────────────────────────────────────
 DEFAULT_CONFIG = {
     "service": "Google",
     "yandex_key": "",
@@ -55,7 +158,9 @@ DEFAULT_CONFIG = {
     "hotkey": "Ctrl+Q"
 }
 
-# ---------- Диалог настроек ----------
+# ────────────────────────────────────────────────────────────────────────────
+# Диалог настроек
+# ────────────────────────────────────────────────────────────────────────────
 class SettingsDialog(QDialog):
     def __init__(self, config, parent=None):
         super().__init__(parent)
@@ -68,7 +173,7 @@ class SettingsDialog(QDialog):
                 border-radius: 16px;
                 border: 2px solid #7289da;
             }
-            QLabel { color: #e0e0e0; font-size: 14px; }
+            QLabel { color: #e0e0e0; font-size: 14px; font-weight: bold; }
             QComboBox, QLineEdit {
                 background: #2a2a3c; color: white;
                 border: 1px solid #5a5a7a; border-radius: 8px;
@@ -125,10 +230,13 @@ class SettingsDialog(QDialog):
             "hotkey": self.hotkey_edit.keySequence().toString()
         }
 
-# ---------- История ----------
+# ────────────────────────────────────────────────────────────────────────────
+# Диалог истории переводов
+# ────────────────────────────────────────────────────────────────────────────
 class HistoryDialog(QDialog):
     def __init__(self, history, parent=None):
         super().__init__(parent)
+        self.main_window = parent
         self.setWindowTitle("История переводов")
         self.setFixedSize(560, 420)
         self.setStyleSheet("""
@@ -167,6 +275,10 @@ class HistoryDialog(QDialog):
         copy_btn.clicked.connect(self.copy_selected)
         layout.addWidget(copy_btn)
 
+        clear_btn = QPushButton("🗑️ Очистить историю")
+        clear_btn.clicked.connect(self.clear_history)
+        layout.addWidget(clear_btn)
+
     def copy_selected(self):
         item = self.list_widget.currentItem()
         if item:
@@ -174,7 +286,14 @@ class HistoryDialog(QDialog):
             pyperclip.copy(entry['tgt'])
             QMessageBox.information(self, "Скопировано", "Перевод скопирован в буфер")
 
-# ---------- Главное окно (с перетаскиванием и кнопкой swap) ----------
+    def clear_history(self):
+        self.main_window.clear_history()
+        self.list_widget.clear()
+        QMessageBox.information(self, "Очищено", "История переводов полностью очищена.")
+
+# ────────────────────────────────────────────────────────────────────────────
+# Главное окно
+# ────────────────────────────────────────────────────────────────────────────
 class TranslatorWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -186,14 +305,12 @@ class TranslatorWindow(QMainWindow):
         self.config = self.load_config()
         self.history = self.config.get("history", [])
 
-        # Потокобезопасный глобальный хоткей
         self.global_hotkey = GlobalHotkey(self.config.get("hotkey", "Ctrl+Q"))
         self.global_hotkey.activated.connect(self.toggle_window)
 
         self.init_ui()
         self.show()
         self.fade_in()
-
         self.drag_pos = QPoint()
 
     def init_ui(self):
@@ -225,7 +342,6 @@ class TranslatorWindow(QMainWindow):
         self.title_label.setStyleSheet("color: white; font-size: 22px; font-weight: bold;")
         title_layout.addWidget(self.title_label)
         title_layout.addStretch()
-
         close_btn = QPushButton("✕")
         close_btn.setFixedSize(36, 36)
         close_btn.setStyleSheet("""
@@ -236,14 +352,17 @@ class TranslatorWindow(QMainWindow):
         title_layout.addWidget(close_btn)
         layout.addLayout(title_layout)
 
-        # Выбор языка с кнопкой swap
+        # Выбор языка с кастомными списками
         lang_layout = QHBoxLayout()
-        self.src_combo = self._create_combo(["auto", "en", "ru", "de", "fr", "es", "it", "zh", "ja", "ko"])
+        self.src_label = QLabel("С какого языка:")
+        self.src_label.setStyleSheet("color: #e0e0ff; font-size: 15px; font-weight: bold;")
+        lang_layout.addWidget(self.src_label)
+
+        self.src_combo = LanguageComboBox(["auto", "en", "ru", "de", "fr", "es", "it", "zh", "ja", "ko"])
         self.src_combo.setCurrentText(self.config.get("src_lang", "ru"))
-        lang_layout.addWidget(QLabel("С какого языка:"))
         lang_layout.addWidget(self.src_combo)
 
-        # Кнопка swap ⇄
+        # Кнопка swap
         self.swap_btn = QPushButton("⇄")
         self.swap_btn.setFixedSize(40, 40)
         self.swap_btn.setToolTip("Поменять языки местами")
@@ -257,9 +376,12 @@ class TranslatorWindow(QMainWindow):
         self.swap_btn.clicked.connect(self.swap_languages)
         lang_layout.addWidget(self.swap_btn)
 
-        self.tgt_combo = self._create_combo(["en", "ru", "de", "fr", "es", "it", "zh", "ja", "ko"])
+        self.tgt_combo = LanguageComboBox(["en", "ru", "de", "fr", "es", "it", "zh", "ja", "ko"])
         self.tgt_combo.setCurrentText(self.config.get("tgt_lang", "en"))
-        lang_layout.addWidget(QLabel("На какой язык:"))
+
+        self.tgt_label = QLabel("На какой язык:")
+        self.tgt_label.setStyleSheet("color: #e0e0ff; font-size: 15px; font-weight: bold;")
+        lang_layout.addWidget(self.tgt_label)
         lang_layout.addWidget(self.tgt_combo)
         layout.addLayout(lang_layout)
 
@@ -279,7 +401,28 @@ class TranslatorWindow(QMainWindow):
         # Чекбокс очистки
         self.clear_checkbox = QCheckBox("Очищать поле после перевода")
         self.clear_checkbox.setChecked(self.config.get("clear_after_translate", False))
-        self.clear_checkbox.setStyleSheet("color: #ccc; font-size: 13px;")
+        self.clear_checkbox.setStyleSheet("""
+            QCheckBox {
+                color: #e0e0e0;
+                font-size: 14px;
+                font-weight: bold;
+                spacing: 8px;
+            }
+            QCheckBox::indicator {
+                width: 20px;
+                height: 20px;
+                border-radius: 5px;
+                border: 2px solid #7289da;
+                background: #25253a;
+            }
+            QCheckBox::indicator:checked {
+                background: #9b6dff;
+                border-color: #9b6dff;
+            }
+            QCheckBox::indicator:hover {
+                border-color: #9b6dff;
+            }
+        """)
         layout.addWidget(self.clear_checkbox)
 
         # Кнопка перевода
@@ -309,7 +452,6 @@ class TranslatorWindow(QMainWindow):
             }
         """)
         output_layout.addWidget(self.output_text)
-
         self.copy_btn = QToolButton()
         self.copy_btn.setText("📋")
         self.copy_btn.setToolTip("Копировать перевод")
@@ -329,7 +471,7 @@ class TranslatorWindow(QMainWindow):
         self.history_btn = QPushButton("📚 История")
         self.history_btn.setStyleSheet("""
             QPushButton { background: #3c3c5c; color: white; border: none;
-                          padding: 10px 16px; border-radius: 10px; font-size: 13px; }
+                          padding: 10px 20px; border-radius: 10px; font-size: 14px; font-weight: bold; }
             QPushButton:hover { background: #5b6eae; }
         """)
         self.history_btn.clicked.connect(self.show_history)
@@ -338,38 +480,17 @@ class TranslatorWindow(QMainWindow):
         self.settings_btn = QPushButton("⚙️ Настройки")
         self.settings_btn.setStyleSheet("""
             QPushButton { background: #3c3c5c; color: white; border: none;
-                          padding: 10px 16px; border-radius: 10px; font-size: 13px; }
+                          padding: 10px 20px; border-radius: 10px; font-size: 14px; font-weight: bold; }
             QPushButton:hover { background: #5b6eae; }
         """)
         self.settings_btn.clicked.connect(self.open_settings)
         btn_layout.addWidget(self.settings_btn)
         layout.addLayout(btn_layout)
 
-    def _create_combo(self, items):
-        combo = QComboBox()
-        combo.addItems(items)
-        combo.setStyleSheet("""
-            QComboBox {
-                background: #3c3c5c; color: white; border: 1px solid #7289da;
-                border-radius: 8px; padding: 8px; font-size: 14px;
-            }
-            QComboBox:hover { border-color: #9b6dff; }
-            QComboBox::drop-down { border: none; }
-            QComboBox QAbstractItemView {
-                background: #2a2a3c; color: white;
-                selection-background-color: #7289da;
-            }
-        """)
-        return combo
-
     def swap_languages(self):
-        """Меняем языки местами."""
         src = self.src_combo.currentText()
         tgt = self.tgt_combo.currentText()
-        # Если исходный язык "auto", при свапе ставим tgt -> src, а auto -> tgt (обычно неудобно)
-        # Лучше: если src == "auto", то просто поменять местами, но auto не должен стать целевым.
         if src == "auto":
-            # Делаем целевым "auto" нельзя, оставим как есть или отключим кнопку? Просто не меняем.
             return
         self.src_combo.setCurrentText(tgt)
         self.tgt_combo.setCurrentText(src)
@@ -426,6 +547,10 @@ class TranslatorWindow(QMainWindow):
         self.history = self.history[:20]
         self.save_config()
 
+    def clear_history(self):
+        self.history.clear()
+        self.save_config()
+
     def copy_translation(self):
         text = self.output_text.toPlainText().strip()
         if text:
@@ -471,7 +596,7 @@ class TranslatorWindow(QMainWindow):
         self.animation.setEasingCurve(QEasingCurve.OutCubic)
         self.animation.start()
 
-    # ---------- Перетаскивание ----------
+    # Перетаскивание
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
             self.drag_pos = event.globalPos() - self.frameGeometry().topLeft()
@@ -488,7 +613,7 @@ class TranslatorWindow(QMainWindow):
         self.drag_pos = QPoint()
         super().mouseReleaseEvent(event)
 
-    # ---------- Конфигурация ----------
+    # Конфигурация
     def load_config(self):
         if os.path.exists(CONFIG_PATH):
             try:
