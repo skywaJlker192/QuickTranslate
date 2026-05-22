@@ -3,7 +3,7 @@
 Быстрый десктопный переводчик для macOS и Windows. Вызывается по глобальной горячей клавише, переводит текст через Google, Яндекс или DeepL. Поддерживает автоопределение языка, историю переводов, быструю смену направления и копирование перевода в один клик.
 
 ## Скриншот программы
-<img width="533" height="636" alt="image" src="https://github.com/user-attachments/assets/3e93fbd1-403b-4659-9768-7d3d48a9b848" />
+<img width="541" height="638" alt="image" src="https://github.com/user-attachments/assets/835ff15d-557a-4a18-9be2-2d990f775eff" />
 
 ## 🚀 Возможности
 
